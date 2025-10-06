@@ -1,1 +1,63 @@
+import pandas as pd
+import numpy as np
 
+goals_df = pd.read_csv("goalscorers.csv")
+results_df = pd.read_csv("results.csv")
+shootouts_df = pd.read_csv("shootouts.csv")
+
+## Task 1
+## Create a query that calculates the average number of goals per game between 1900 and 2000.
+
+results_df['date'] = pd.to_datetime(results_df['date'])
+filtered_df = results_df[(results_df['date'].dt.year >= 1900) & (results_df['date'].dt.year < 2000)]
+average_goals = (filtered_df['home_score'] + filtered_df['away_score']).mean().round(2)
+print ('Average goals between 1900 and 2000 =', average_goals)
+
+## Task 2
+## Create a query that counts the number of shootouts wins by country and arrange in alphabetical order.
+shootout_wins_by_country = shootouts_df['winner'].value_counts().sort_index()
+
+print("Shootout wins by country:")
+print(shootout_wins_by_country)
+
+## Task 3
+## Create a reliable key that allows the joining together of goal scorers, results, and shootouts.
+def create_key(df):
+    return (
+        df['date'].astype(str) + '_' + 
+        df['home_team'] + '_' + 
+        df['away_team']
+    )
+
+results_df['key'] = create_key(results_df)
+shootouts_df['key'] = create_key(shootouts_df)
+goals_df['key'] = create_key(goals_df)
+
+results_shootouts_df = pd.merge(
+    results_df, 
+    shootouts_df[['key', 'winner', 'first_shooter']],
+    on='key', 
+    how='left'  
+)
+
+combined_df = pd.merge(
+    results_shootouts_df,
+    goals_df.groupby('key').agg({
+        'scorer': list,
+        'minute': list,
+        'team': list
+    }).reset_index(),
+    on='key',
+    how='left'
+)
+
+## Task 4
+## Create a query that identifies which teams have won a penalty shootout after a 1-1 draw.
+shootout_wins_1_1 = combined_df[
+    (combined_df['home_score'] == 1) & 
+    (combined_df['away_score'] == 1) &
+    (combined_df['winner'].notna())]
+
+teams_shootout_wins_1_1 = shootout_wins_1_1['winner'].unique().tolist()
+
+print(f"Teams that won penalty shootouts after 1-1 draws:", sorted(teams_shootout_wins_1_1))
