@@ -61,3 +61,29 @@ shootout_wins_1_1 = combined_df[
 teams_shootout_wins_1_1 = shootout_wins_1_1['winner'].unique().tolist()
 
 print(f"Teams that won penalty shootouts after 1-1 draws:", sorted(teams_shootout_wins_1_1))
+
+
+## Task 5
+## Create a query that identifies the top goal scorer by tournament, and what percentage that equates to for all goals scored in the tournament.
+tournament_goals = goals_df.merge(
+    results_df[['key', 'tournament']],
+    on='key',
+    how='left'
+)
+
+top_scorers_tournament = (
+    tournament_goals.groupby(['tournament', 'scorer'])
+    .agg(goals=('scorer','count'))
+    .reset_index()
+    .sort_values('goals', ascending=False)
+    .groupby('tournament')
+    .head(1)
+)
+
+tournament_total = tournament_goals.groupby('tournament').size().reset_index(name='total_goals')
+
+result = pd.merge(top_scorers_tournament, tournament_total, on='tournament')
+result['percentage'] = (result['goals'] / result['total_goals'] * 100).round(2)
+
+print("Top goal scorers by tournament:")
+print(result[['tournament', 'scorer', 'goals', 'total_goals', 'percentage']].to_string(index=False))
